@@ -1,0 +1,5 @@
+# Project exclude paths
+/.gradle/
+/resultex/build/
+/resultex/build/classes/kotlin/main/
+/resultex/build/classes/kotlin/test/
