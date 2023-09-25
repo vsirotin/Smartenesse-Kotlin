@@ -770,11 +770,24 @@ internal class ErrorTest {
         assertTrue(actionWithErrorExecuted)
     }
 
-    private fun someActionWithValue(ignoredValue: Int){
+    /**
+     * Dummy function for an action that should be executed when a value is available.
+     * This function is used to fix the call structure and set the 'actionWithValueExecuted' flag to true.
+     *
+     * @param ignoredValue The integer value (ignored) for which the action is performed.
+     */
+    private fun someActionWithValue(ignoredValue: Int) {
         actionWithValueExecuted = true
     }
 
-    private fun someActionWithError(ignoredError: Throwable){
+    /**
+     * Dummy function for an action that should be executed when an error occurs.
+     * This function is used to fix the call structure and set the 'actionWithErrorExecuted' flag to true.
+     *
+     * @param ignoredError The Throwable (ignored) representing the error condition for which the action is performed.
+     */
+    private fun someActionWithError(ignoredError: Throwable) {
         actionWithErrorExecuted = true
     }
+
 }
