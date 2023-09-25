@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 private const val SUCCESS = "Success"
 private const val FAILURE = "Failure"
 
-internal class ErrorTest {
+internal class `Unit Tests for Various Result Class Function`   {
 
     private var actionWithValueExecuted = false
     private var actionWithErrorExecuted = false
@@ -53,7 +53,7 @@ internal class ErrorTest {
         assertNull(error.localizedMessage)
 
         // Verify that the stack trace contains the expected class name.
-        assertTrue(error.stackTrace[0].toString().startsWith("eu.sirotin.kotlin.error.ErrorTest.Parameterless"))
+        assertTrue(error.stackTrace[0].toString().contains("Parameterless Error object"))
 
         // Assert that the result of calling toString() on the Error matches the expected class name.
         assertEquals("java.lang.Error", error.toString())
