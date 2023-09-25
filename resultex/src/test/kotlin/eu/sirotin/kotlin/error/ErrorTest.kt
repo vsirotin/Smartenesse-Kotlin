@@ -1,6 +1,9 @@
+@file:Suppress("SameParameterValue")
+
 package eu.sirotin.kotlin.error
 
 import kotlin.math.sign
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -13,6 +16,15 @@ private const val SUCCESS = "Success"
 private const val FAILURE = "Failure"
 
 internal class ErrorTest {
+
+    private var actionWithValueExecuted = false
+    private var actionWithErrorExecuted = false
+
+    @BeforeTest
+    fun setUp(){
+        actionWithValueExecuted = false
+        actionWithErrorExecuted = false
+    }
 
     /**
      * Test case for creating a parameterless Error object.
@@ -68,8 +80,6 @@ internal class ErrorTest {
         // Assert that the cause of the Error matches the provided exception.
         assertEquals(exception, error.cause)
     }
-
-
 
     /**
      * Converts the current string to an integer safely, handling exceptions naively.
@@ -138,6 +148,9 @@ internal class ErrorTest {
         assertFalse(resultSuccess1.isFailure)
         assertFalse(resultSuccess2.isFailure)
 
+        // Check toString()
+        assertEquals("Success(21)", resultSuccess1.toString())
+
         // Obtain two results for failed conversions from "21.1" to an integer.
         val resultFailure1 = "21.1".toIntSafeNaive()
         val resultFailure2 = "21.1".toIntSafe()
@@ -152,6 +165,9 @@ internal class ErrorTest {
         // Check that both results do not indicate success.
         assertFalse(resultFailure1.isSuccess)
         assertFalse(resultFailure2.isSuccess)
+
+        // Check toString()
+        assertEquals("Failure(java.lang.NumberFormatException: For input string: \"21.1\")", resultFailure1.toString())
     }
 
     /**
@@ -211,7 +227,8 @@ internal class ErrorTest {
      */
     private fun addAsString(a: String, b: String): String {
         return runCatching {
-            "${a.toInt() + b.toInt()}"   }.getOrElse { e->getFalseValue(e) }
+            "${a.toInt() + b.toInt()}"}
+            .getOrElse { e->getFalseValue(e) }
     }
 
     /**
@@ -399,7 +416,7 @@ internal class ErrorTest {
     @Test
     fun `Using recoverCatching`() {
         // Use `runCatching` to call `toIntSafe` with "-15.1" and use `recover` to convert "0.0" to an integer or retrieve an exception.
-        val result1 = runCatching { "-15.1".toIntSafe().recover { _ -> "0.0".toInt() }}.exceptionOrNull()
+        val result1 = runCatching { "-15.1".toIntSafe().recover { "0.0".toInt() }}.exceptionOrNull()
 
         // Assert that an exception of type `NumberFormatException` is thrown, and the error message contains "0.0".
         assertNotNull(result1)
@@ -407,7 +424,7 @@ internal class ErrorTest {
         assertTrue(result1.message!!.contains("0.0"))
 
         // Directly use `recoverCatching` with "-15.1" and convert "0.0" to an integer.
-        val result2 =  "-15.1".toIntSafe().recoverCatching { _ -> "0.0".toInt() }.exceptionOrNull()
+        val result2 =  "-15.1".toIntSafe().recoverCatching { "0.0".toInt() }.exceptionOrNull()
 
         // Assert that an exception of type `NumberFormatException` is thrown, and the error message contains "0.0".
         assertNotNull(result2)
@@ -415,13 +432,13 @@ internal class ErrorTest {
         assertTrue(result2.message!!.contains("0.0"))
 
         // Directly use `recoverCatching` with "-15" and convert "0.0" to an integer.
-        val result3 =  "-15".toIntSafe().recoverCatching { _ -> "0.0".toInt() }.getOrNull()
+        val result3 =  "-15".toIntSafe().recoverCatching { "0.0".toInt() }.getOrNull()
 
         // Assert that the result is -15.
         assertEquals(-15, result3)
 
         // Directly use `recoverCatching` with "-15.1" and convert "2" to an integer.
-        val result4 =  "-15.1".toIntSafe().recoverCatching { _ -> "2".toInt() }.getOrNull()
+        val result4 =  "-15.1".toIntSafe().recoverCatching { "2".toInt() }.getOrNull()
 
         // Assert that the result is 2.
         assertEquals(2, result4)
@@ -439,8 +456,8 @@ internal class ErrorTest {
         return runCatching {
             "${a.toInt() + b.toInt()}"   }
             .fold(
-                {value->"Result: $value"},
-                {e->getFalseValue(e)}
+                {"Result: $it"},
+                {getFalseValue(it)}
             )
     }
 
@@ -456,8 +473,8 @@ internal class ErrorTest {
         return runCatching {
             "${a.toInt() + b.toInt()}"   }
             .fold(
-                onSuccess = {value->"Result: $value"},
-                onFailure = {e->getFalseValue(e)}
+                onSuccess = {"Result: $it"},
+                onFailure = {getFalseValue(it)}
             )
     }
 
@@ -548,6 +565,102 @@ internal class ErrorTest {
         assertEquals(SUCCESS, result)
     }
 
+    /**
+     * Processes an integer value represented as a string, following the strategy of
+     * "make something by success and throw by failure."
+     *
+     * @param value The string representation of an integer value.
+     * @return A Throwable instance if there is a conversion failure, otherwise null.
+     */
+    private fun processIntValue(value: String): Throwable? =
+        value.toIntSafe()
+            .onSuccess { someActionWithValue(it) }
+            .exceptionOrNull()
+    /**
+    * Test case to demonstrate processing an integer value as a string and handling success and failure.
+    */
+    @Test
+    fun `Using pseudo result-less`() {
+
+        // When "25" is processed, it should result in a null Throwable, indicating success.
+        assertNull(processIntValue("25"))
+        assertTrue(actionWithValueExecuted)
+
+        // Reset the action flag for the next test.
+        actionWithValueExecuted = false
+
+        // When "25.9" is processed, it should result in a non-null Throwable, indicating a failure.
+        assertNotNull(processIntValue("25.9"))
+        assertFalse(actionWithValueExecuted)
+    }
+
+
+    /**
+     * Calculates the expression ax^2 + bx + c for given values of x, a, b, and c.
+     * This function employs the strategy of "stopping normal processing by the first failure in the chain."
+     *
+     * @param x The value of 'x' in the equation.
+     * @param a The coefficient 'a' as a String.
+     * @param b The coefficient 'b' as a String.
+     * @param c The coefficient 'c' as a String.
+     * @return A Result<Int> representing the result of the calculation or an exception if any of the conversions fail.
+     */
+    private fun `calculate ax2 + bx + c`(x: Int, a: String, b: String, c: String): Result<Int> =
+        runCatching { a.toInt() * x * x }
+            .mapCatching { it + b.toInt() * x }
+            .mapCatching { it + c.toInt() }
+
+    /**
+     * Test case to demonstrate chained calculations and catching the first failure.
+     */
+    @Test
+    fun `Using chained call with catching first failure`() {
+
+        // Calculate the expression successfully with valid inputs.
+        assertEquals(6, `calculate ax2 + bx + c`(1, "1", "2", "3").getOrNull()!!)
+
+        // Attempt to calculate with 'a' as a non-integer should result in an exception.
+        assertTrue(`calculate ax2 + bx + c`(1, "1.1", "2", "3").exceptionOrNull().toString().contains("1.1"))
+
+        // Attempt to calculate with 'b' as a non-integer should result in an exception.
+        assertTrue(`calculate ax2 + bx + c`(1, "1", "2.2", "3").exceptionOrNull().toString().contains("2.2"))
+
+        // Attempt to calculate with 'c' as a non-integer should result in an exception.
+        assertTrue(`calculate ax2 + bx + c`(1, "1", "2", "3.3").exceptionOrNull().toString().contains("3.3"))
+    }
+
+    /**
+     * Converts a string to an integer using a strategy of "trying many approaches to get a value."
+     * This function first attempts to convert the string to an integer safely. If that fails, it tries
+     * to convert the string to a double and then to an integer. If both conversions fail, it returns
+     * Int.MAX_VALUE.
+     *
+     * @return An integer value obtained from the string or Int.MAX_VALUE if all conversion attempts fail.
+     */
+    private fun String.toIntAnyway(): Int =
+        this.toIntSafe()
+            .recoverCatching { this.toDouble().toInt() }
+            .getOrDefault(Int.MAX_VALUE)
+
+    /**
+     * Test cases to demonstrate the "try many approaches to get a value" strategy.
+     */
+    @Test
+    fun `Using chained call anyway strategy`() {
+
+        // Successfully convert "2" to an integer.
+        assertEquals(2, "2".toIntAnyway())
+
+        // Convert "2.2" to an integer after trying the double conversion.
+        assertEquals(2, "2.2".toIntAnyway())
+
+        // Convert "23.81e5" to an integer after trying the double conversion.
+        assertEquals(2381000, " 23.81e5".toIntAnyway())
+
+        // Conversion fails for " Very match," so it returns Int.MAX_VALUE.
+        assertEquals(Int.MAX_VALUE, " Very match".toIntAnyway())
+    }
+
 
     /**
      * Attempts to extract the sign of an integer from the current [String].
@@ -583,7 +696,7 @@ internal class ErrorTest {
      *   It asserts that the results are "+", and "-", respectively.
      */
     @Test
-    fun `Using result-less return`() {
+    fun `Using not-applicable`() {
         // Call the `signOfInt` function with an invalid input "1.1" and retrieve the exception.
         val result1 = "1.1".signOfInt()?.exceptionOrNull()
 
@@ -604,6 +717,64 @@ internal class ErrorTest {
         assertEquals("-", result3)
     }
 
+    // This test case demonstrates a naive usage of the Result class for handling conversions.
+    @Test
+    fun `Naive using of Result 1`() {
+        //Bad practices!
+        val result = "12".toIntSafe()
+        if(result.isSuccess){
+            someActionWithValue(result.getOrNull()!!)
+        }else{
+            someActionWithError(result.exceptionOrNull()!!)
+        }
+        assertTrue(actionWithValueExecuted)
+        assertFalse(actionWithErrorExecuted)
 
+    }
 
+    // This test case demonstrates a naive usage of the Result class for handling conversions.
+    @Test
+    fun `Naive using of Result 2`() {
+        //Bad practices!
+        val result = "12.1".toIntSafe()
+        if(result.isSuccess){
+            someActionWithValue(result.getOrNull()!!)
+        }else{
+            someActionWithError(result.exceptionOrNull()!!)
+        }
+        assertFalse(actionWithValueExecuted)
+        assertTrue(actionWithErrorExecuted)
+    }
+
+    // This test case demonstrates the idiomatic usage of the Result class for handling conversions.
+    @Test
+    fun `Using Result idiomatically 1`() {
+
+        "12".toIntSafe()
+            .onSuccess {  someActionWithValue(it)}
+            .onFailure { someActionWithError(it) }
+
+        assertTrue(actionWithValueExecuted)
+        assertFalse(actionWithErrorExecuted)
+    }
+
+    // This test case demonstrates the idiomatic usage of the Result class for handling conversions.
+    @Test
+    fun `Using Result idiomatically 2`() {
+
+        "12.1".toIntSafe()
+            .onSuccess {  someActionWithValue(it)}
+            .onFailure { someActionWithError(it) }
+
+        assertFalse(actionWithValueExecuted)
+        assertTrue(actionWithErrorExecuted)
+    }
+
+    private fun someActionWithValue(ignoredValue: Int){
+        actionWithValueExecuted = true
+    }
+
+    private fun someActionWithError(ignoredError: Throwable){
+        actionWithErrorExecuted = true
+    }
 }
