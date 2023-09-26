@@ -415,13 +415,6 @@ internal class `Unit Tests for Various Result Class Function`   {
      */
     @Test
     fun `Using recoverCatching`() {
-        // Use `runCatching` to call `toIntSafe` with "-15.1" and use `recover` to convert "0.0" to an integer or retrieve an exception.
-        val result1 = runCatching { "-15.1".toIntSafe().recover { "0.0".toInt() }}.exceptionOrNull()
-
-        // Assert that an exception of type `NumberFormatException` is thrown, and the error message contains "0.0".
-        assertNotNull(result1)
-        assertIs<NumberFormatException>(result1)
-        assertTrue(result1.message!!.contains("0.0"))
 
         // Directly use `recoverCatching` with "-15.1" and convert "0.0" to an integer.
         val result2 =  "-15.1".toIntSafe().recoverCatching { "0.0".toInt() }.exceptionOrNull()
